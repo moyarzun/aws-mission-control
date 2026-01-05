@@ -62,12 +62,43 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   async function signIn(input: SignInInput) {
-    const result = await amplifySignIn(input);
-    if (result.isSignedIn) {
-      const currentUser = await getCurrentUser();
-      setUser(currentUser);
+    try {
+      const result = await amplifySignIn(input);
+      if (result.isSignedIn) {
+        const currentUser = await getCurrentUser();
+        setUser(currentUser);
+      }
+      return result;
+    } catch (error: any) {
+      // Check for "User already connected" or similar errors indicating an existing session
+      // This handles the case where local state is stale or a session exists but checkUser failed
+      if (
+        error.name === 'UserAlreadyAuthenticatedException' ||
+        error.message?.includes('already a user') ||
+        error.message?.includes('logged in') ||
+        error.message?.includes('Ya hay un usuario conectado') // Handling the specific Spanish message reported
+      ) {
+        console.log('Existing session detected during login. Signing out and retrying...');
+        try {
+          // Force local sign out to clear state
+          await amplifySignOut();
+          // Optional: If "terminate all active sessions" implies global, using { global: true } 
+          // might fail if tokens are invalid. Local signOut is safer to unblock the UI.
+        } catch (signOutError) {
+          console.warn('Error during auto-signout:', signOutError);
+        }
+
+        // Retry sign in
+        const retryResult = await amplifySignIn(input);
+        if (retryResult.isSignedIn) {
+          const currentUser = await getCurrentUser();
+          setUser(currentUser);
+        }
+        return retryResult;
+      }
+      // Re-throw if it's a legitimate auth error (wrong password, etc)
+      throw error;
     }
-    return result;
   }
 
   async function signOut() {

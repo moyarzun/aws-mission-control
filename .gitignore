@@ -45,3 +45,4 @@ app-example
 # Debug logs
 crash_log*.txt
 build_log*.txt
+aws-keys/
