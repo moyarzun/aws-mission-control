@@ -46,3 +46,4 @@ app-example
 crash_log*.txt
 build_log*.txt
 aws-keys/
+n8n-keys/
